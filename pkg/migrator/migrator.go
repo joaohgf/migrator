@@ -12,17 +12,29 @@ type Migrator struct {
 	DB  *gorm.DB
 }
 
-// New creates a new Migrator from a config file path.
-func New(cfgPath string) (*Migrator, error) {
-	cfg, err := config.LoadConfig(cfgPath)
-	if err != nil {
+// New creates a new Migrator from a loaded config.
+func New(cfg *config.Config) (*Migrator, error) {
+	m := &Migrator{Cfg: cfg}
+	if err := m.Connect(); err != nil {
 		return nil, err
 	}
-	conn, err := ConnectDB(cfg)
+	return m, nil
+}
+
+// ConnectDB connects the Migrator to the database using the resolved config secrets.
+func (m *Migrator) Connect() error {
+	dsn := "host=" + m.Cfg.Host.Value() +
+		" port=" + m.Cfg.Port.Value() +
+		" user=" + m.Cfg.User.Value() +
+		" password=" + m.Cfg.Password.Value() +
+		" dbname=" + m.Cfg.DBName.Value() +
+		" sslmode=" + m.Cfg.SSLMode
+	db, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
 	if err != nil {
-		return nil, err
+		return err
 	}
-	return &Migrator{Cfg: cfg, DB: conn}, nil
+	m.DB = db
+	return nil
 }
 
 // Up applies all pending migrations.
@@ -38,15 +50,4 @@ func (m *Migrator) Down(steps int) error {
 // Status prints the current migration status.
 func (m *Migrator) Status() error {
 	return statusMigrations(m.Cfg, m.DB)
-}
-
-// ConnectDB connects to the database using the resolved config secrets.
-func ConnectDB(cfg *config.Config) (*gorm.DB, error) {
-	dsn := "host=" + cfg.Host.Value() +
-		" port=" + cfg.Port.Value() +
-		" user=" + cfg.User.Value() +
-		" password=" + cfg.Password.Value() +
-		" dbname=" + cfg.DBName.Value() +
-		" sslmode=" + cfg.SSLMode
-	return gorm.Open(postgres.Open(dsn), &gorm.Config{})
 }
