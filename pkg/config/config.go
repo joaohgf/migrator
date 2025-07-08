@@ -3,6 +3,7 @@ package config
 import (
 	"errors"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"github.com/spf13/viper"
@@ -31,10 +32,27 @@ type Config struct {
 }
 
 // LoadConfig loads config from a TOML file and environment variables.
+// If the path is relative, it will search from the current working directory and project root.
 // Environment variables override file values (e.g. MIGRATOR_HOST, MIGRATOR_DBNAME).
 func LoadConfig(path string) (*Config, error) {
+	resolvedPath := path
+	if !filepath.IsAbs(path) {
+		// Try current working directory
+		cwd, _ := os.Getwd()
+		tryPath := filepath.Join(cwd, path)
+		if _, err := os.Stat(tryPath); err == nil {
+			resolvedPath = tryPath
+		} else {
+			// Try project root (one level up from cwd)
+			rootPath := filepath.Join(cwd, "..", path)
+			if _, err := os.Stat(rootPath); err == nil {
+				resolvedPath = rootPath
+			}
+		}
+	}
+
 	v := viper.New()
-	v.SetConfigFile(path)
+	v.SetConfigFile(resolvedPath)
 	v.SetConfigType("toml")
 	v.SetEnvPrefix("migrator")
 	v.AutomaticEnv()
