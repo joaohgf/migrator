@@ -1,6 +1,8 @@
 package migrator
 
 import (
+	"fmt"
+
 	"github.com/joaohgf/migrator/pkg/config"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -21,7 +23,7 @@ func New(cfg *config.Config) (*Migrator, error) {
 	return m, nil
 }
 
-// ConnectDB connects the Migrator to the database using the resolved config secrets.
+// Connect connects the Migrator to the database using the resolved config secrets.
 func (m *Migrator) Connect() error {
 	dsn := "host=" + m.Cfg.Host.Value() +
 		" port=" + m.Cfg.Port.Value() +
@@ -50,4 +52,20 @@ func (m *Migrator) Down(steps int) error {
 // Status prints the current migration status.
 func (m *Migrator) Status() error {
 	return statusMigrations(m.Cfg, m.DB)
+}
+
+// AutoMigrate runs Up and if any migration fails, automatically rolls back the last batch.
+func (m *Migrator) AutoMigrate() error {
+	fmt.Println("Starting automatic migration (with rollback on error)...")
+	err := m.Up(false)
+	if err == nil {
+		fmt.Println("All migrations applied successfully.")
+		return nil
+	}
+	fmt.Printf("Migration failed: %v\nRolling back last batch...\n", err)
+	downErr := m.Down(1)
+	if downErr != nil {
+		return fmt.Errorf("migration failed: %v; rollback also failed: %v", err, downErr)
+	}
+	return fmt.Errorf("migration failed: %v; rollback successful", err)
 }
