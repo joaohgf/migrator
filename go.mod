@@ -2,8 +2,6 @@ module github.com/joaohgf/migrator
 
 go 1.22.3
 
-replace cmd/migrator => ./cmd/migrator
-
 require (
 	github.com/fsnotify/fsnotify v1.8.0 // indirect
 	github.com/go-viper/mapstructure/v2 v2.2.1 // indirect
